@@ -106,6 +106,83 @@
             color: var(--color-primary);
         }
 
+        /* ========== Newsletter Card ========== */
+        .newsletter-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            margin: 2rem 0;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .newsletter-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+        }
+
+        .newsletter-card-logo {
+            width: 60px;
+            height: 60px;
+            flex-shrink: 0;
+        }
+
+        .newsletter-card-content {
+            flex: 1;
+        }
+
+        .newsletter-card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 0.5rem;
+        }
+
+        .newsletter-card-text {
+            font-size: 0.875rem;
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.5;
+        }
+
+        .newsletter-card-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.75rem 1.5rem;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+
+        .newsletter-card-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .newsletter-card-link svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .newsletter-card {
+                flex-direction: column;
+                text-align: center;
+                padding: 1.5rem;
+            }
+
+            .newsletter-card-logo {
+                width: 50px;
+                height: 50px;
+            }
+        }
+
         /* ========== Metrics Bar ========== */
         .metrics-bar {
             display: flex;
@@ -419,6 +496,24 @@
         <!-- Header -->
         <header class="header">
             <h1>AI Agent Adoption in Public GitHub Repositories</h1>
+
+            <!-- Newsletter Card -->
+            <a href="https://alteredcraft.com/p/mapping-ai-agent-adoption-across" target="_blank" rel="noopener noreferrer" style="text-decoration: none;">
+                <div class="newsletter-card">
+                    <img src="img/logo.v1.small.png" alt="Altered Craft" class="newsletter-card-logo">
+                    <div class="newsletter-card-content">
+                        <div class="newsletter-card-title">Read the Full Analysis</div>
+                        <div class="newsletter-card-text">Explore deeper insights, methodology, and key findings in the accompanying newsletter post on Altered Craft.</div>
+                    </div>
+                    <div class="newsletter-card-link">
+                        Read Article
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </div>
+                </div>
+            </a>
+
             <div class="intro-copy">
                 <p class="lead">AI coding agents emerged in early 2025, and developers started adding configuration files to their repositories. This dashboard maps that adoption across <strong>217,000+ public GitHub repositories</strong> scanned in Oct, 2025. The data shows actual usage patterns, adoption velocity, and tool preferences as they're unfolding in real projects.</p>
 
