@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent Adoption in Public GitHub Repositories</title>
+
+    <!-- External libraries -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <style>
+        /* ========== Global Styles ========== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --color-primary: #0066CC;
+            --color-cursor: #9333EA;
+            --color-copilot: #28A745;
+            --color-cline: #F97316;
+            --color-agents: #FBBF24;
+            --color-other: #6B7280;
+            --color-text: #1F2937;
+            --color-text-light: #6B7280;
+            --color-bg: #F9FAFB;
+            --color-white: #FFFFFF;
+            --color-border: #E5E7EB;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+            background-color: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* ========== Header ========== */
+        .header {
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--color-text);
+        }
+
+        .header .intro-copy {
+            font-size: 1rem;
+            color: var(--color-text);
+            line-height: 1.7;
+            max-width: 800px;
+        }
+
+        .header .intro-copy .lead {
+            font-size: 1.125rem;
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+
+        .header .intro-copy strong {
+            color: var(--color-text);
+            font-weight: 600;
+        }
+
+        .header .intro-copy .context-list {
+            margin: 1rem 0;
+            padding-left: 0;
+            list-style: none;
+        }
+
+        .header .intro-copy .context-list li {
+            margin: 0.5rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .header .intro-copy .context-list li:before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: var(--color-primary);
+            font-weight: bold;
+        }
+
+        .header .intro-copy .what-it-shows {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #F0F7FF;
+            border-left: 3px solid var(--color-primary);
+            border-radius: 4px;
+        }
+
+        .header .intro-copy .what-it-shows strong {
+            color: var(--color-primary);
+        }
+
+        /* ========== Metrics Bar ========== */
+        .metrics-bar {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            margin: 2rem 0;
+        }
+
+        .metric-pill {
+            background: var(--color-white);
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--color-primary);
+            display: block;
+        }
+
+        .metric-label {
+            font-size: 0.75rem;
+            color: var(--color-text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* ========== Timeline Section ========== */
+        .timeline-section {
+            background: var(--color-white);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .timeline-section h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .timeline-controls {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 1rem;
+        }
+
+        .toggle-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .toggle-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--color-border);
+            background: var(--color-white);
+            color: var(--color-text);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .toggle-btn:hover {
+            background: var(--color-bg);
+        }
+
+        .toggle-btn.active {
+            background: var(--color-primary);
+            color: white;
+            border-color: var(--color-primary);
+        }
+
+        #timeline-chart {
+            width: 100%;
+            height: 500px;
+            margin-bottom: 1rem;
+        }
+
+        .timeline-legend {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            font-size: 0.875rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            opacity: 1;
+            transition: opacity 0.2s;
+        }
+
+        .legend-item.disabled {
+            opacity: 0.3;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 3px;
+            border-radius: 2px;
+        }
+
+        .legend-color.dashed {
+            height: 2px;
+            background: repeating-linear-gradient(
+                to right,
+                currentColor,
+                currentColor 5px,
+                transparent 5px,
+                transparent 10px
+            );
+        }
+
+        .reset-zoom {
+            display: none;
+            margin: 1rem auto 0;
+            padding: 0.5rem 1rem;
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+
+        .reset-zoom:hover {
+            background: #0052A3;
+        }
+
+        .reset-zoom.visible {
+            display: block;
+        }
+
+        /* ========== Bottom Grid ========== */
+        .bottom-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: var(--color-white);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .card h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .card-description {
+            font-size: 0.9375rem;
+            color: var(--color-text-light);
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+
+        .cohort-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .cohort-card {
+            text-align: center;
+        }
+
+        .cohort-card h3 {
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--color-text-light);
+        }
+
+        .cohort-chart {
+            width: 250px;
+            height: 250px;
+            margin: 0 auto 1rem;
+        }
+
+        .cohort-stats {
+            font-size: 0.875rem;
+            color: var(--color-text-light);
+        }
+
+        .cohort-message {
+            font-size: 0.875rem;
+            font-style: italic;
+            margin-top: 0.5rem;
+            color: var(--color-primary);
+        }
+
+        .tool-landscape-chart {
+            height: 300px;
+        }
+
+        .tool-note {
+            margin-top: 1rem;
+            font-size: 0.875rem;
+            color: var(--color-text-light);
+            font-style: italic;
+        }
+
+        /* ========== Footer ========== */
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            font-size: 0.875rem;
+            color: var(--color-text-light);
+        }
+
+        .footer a {
+            color: var(--color-primary);
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* ========== Tooltip ========== */
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 0.75rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 1000;
+            max-width: 250px;
+        }
+
+        .tooltip.visible {
+            opacity: 1;
+        }
+
+        .tooltip-date {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .tooltip-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 0.25rem;
+        }
+
+        /* ========== Responsive ========== */
+        @media (max-width: 1024px) {
+            .metrics-bar {
+                gap: 1rem;
+            }
+
+            .metric-pill {
+                padding: 0.75rem 1rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            #timeline-chart {
+                height: 400px;
+            }
+
+            .timeline-controls {
+                justify-content: center;
+            }
+
+            .cohort-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .cohort-chart {
+                width: 200px;
+                height: 200px;
+            }
+
+            .timeline-legend {
+                font-size: 0.75rem;
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>AI Agent Adoption in Public GitHub Repositories</h1>
+            <div class="intro-copy">
+                <p class="lead">AI coding agents emerged in early 2025, and developers started adding configuration files to their repositories. This dashboard maps that adoption across <strong>217,000+ public GitHub repositories</strong> scanned in Oct, 2025. The data shows actual usage patterns, adoption velocity, and tool preferences as they're unfolding in real projects.</p>
+
+                <p><strong>Data boundaries to keep in mind:</strong></p>
+                <ul class="context-list">
+                    <li><strong>Public GitHub only</strong> – Private repositories and other platforms aren't visible here</li>
+                    <li><strong>Configuration files are optional</strong> – Many teams use agents without config files, or choose not to commit them</li>
+                    <li><strong>⭐ Star range: 430K to 200</strong> – GitHub's power law distribution makes scanning the lower star repos impractical, thus we scanned a subset. This range does capture the most visible and influential projects</li>
+                </ul>
+
+                <div class="what-it-shows">
+                    <strong>What this reveals:</strong> Relative trends, adoption velocity, and behavioral patterns among developers who work in public. Not a complete picture of the entire development sector, but useful signal nonetheless. Explore the data, form your own insights, and see where thoughtful pioneers are heading.
+                </div>
+            </div>
+        </header>
+
+        <!-- Metrics Bar -->
+        <div class="metrics-bar">
+            <div class="metric-pill">
+                <span class="metric-value" id="metric-scanned">-</span>
+                <span class="metric-label">Repos Scanned</span>
+            </div>
+            <div class="metric-pill">
+                <span class="metric-value" id="metric-with-agents">-</span>
+                <span class="metric-label">With Agents</span>
+            </div>
+        </div>
+
+        <!-- Timeline Section -->
+        <section class="timeline-section">
+            <h2>Adoption Over Time</h2>
+
+            <p class="card-description">
+                These are early days, the pattern is still forming. We are currently seeing Claude Code building momentum after its February launch, surpassing first-mover Cursor by July. Notice the Copilot uptick starting in August. Use the zoom and toggle features to explore adoption patterns across different tools and time periods.
+            </p>
+            <p class="card-description" style="font-size: 0.875rem; color: var(--color-text-light); margin-top: 0.5rem;">
+                <em>Note: AGENTS.md (dashed line) represents an open standard for agent configuration, not a specific tool.</em>
+            </p>
+
+            <div class="timeline-controls">
+                <div class="toggle-buttons">
+                    <button class="toggle-btn active" data-mode="split">Split by Tool</button>
+                    <button class="toggle-btn" data-mode="combined">Combined Total</button>
+                </div>
+            </div>
+
+            <div id="timeline-chart"></div>
+
+            <div class="timeline-legend" id="timeline-legend"></div>
+
+            <button class="reset-zoom" id="reset-zoom">Reset Zoom</button>
+        </section>
+
+        <!-- Bottom Grid -->
+        <div class="bottom-grid">
+            <!-- New vs Established -->
+            <div class="card">
+                <h2>New vs Established Repositories</h2>
+
+                <p class="card-description">
+                    Forward-looking embrace vs. cautious retrofitting. Repositories created in 2025 show 13.7% adoption, three times higher than the 4.3% seen in established (pre-2025) projects. New projects face fewer legacy constraints and can build with agents from day one. I've started reaching out to select repositories to gather deeper insights on what's driving these adoption patterns and will be sharing findings.
+                </p>
+
+                <div class="cohort-cards">
+                    <div class="cohort-card">
+                        <h3>New Repos (2025)</h3>
+                        <canvas class="cohort-chart" id="new-repos-chart"></canvas>
+                        <div class="cohort-stats">
+                            <div><span id="new-with-agents">-</span> / <span id="new-total">-</span> repos</div>
+                            <div class="cohort-message">New projects embrace agents</div>
+                        </div>
+                    </div>
+                    <div class="cohort-card">
+                        <h3>Established Repos (Pre-2025)</h3>
+                        <canvas class="cohort-chart" id="established-repos-chart"></canvas>
+                        <div class="cohort-stats">
+                            <div><span id="established-with-agents">-</span> / <span id="established-total">-</span> repos</div>
+                            <div class="cohort-message">Retrofitting is slower</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tool Landscape -->
+            <div class="card">
+                <h2>Single Tool vs. Multi-Tool: Still Experimenting</h2>
+
+                <p class="card-description">
+                    Most developers (86%) work with a single agent tool, while 13.4% are running multiple configurations side-by-side. The split suggests people are trying these tools in real projects, not just reading about them. Whether that 13.4% represents active experimentation or different team preferences is worth exploring further.
+                </p>
+
+                <div class="tool-landscape-chart">
+                    <canvas id="tool-landscape-chart"></canvas>
+                </div>
+                <div class="tool-note">
+                    Note: AGENTS.md is an open standard tracked separately (not a tool). Repos using Claude + AGENTS.md count as "Single Tool".
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div>
+                Research and analysis by <a href="https://alteredcraft.com" target="_blank">Sam Keen</a> •
+                Last updated: <span id="last-updated">-</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Tooltip -->
+    <div class="tooltip" id="tooltip"></div>
+
+    <script>
+        // ========== Configuration ==========
+        const COLORS = {
+            claude_code: '#0066CC',
+            cursor: '#9333EA',
+            copilot: '#28A745',
+            cline: '#F97316',
+            other_tools: '#6B7280',
+            agents_standard: '#FBBF24'
+        };
+
+        const TOOL_LABELS = {
+            claude_code: 'Claude Code',
+            cursor: 'Cursor',
+            copilot: 'Copilot',
+            cline: 'Cline',
+            other_tools: 'Other Tools',
+            agents_standard: 'AGENTS.md'
+        };
+
+        // ========== Data Loading ==========
+        let dashboardData = null;
+        let currentMode = 'split';
+        let disabledTools = new Set();
+        let timelineChart = null;
+
+        async function loadData() {
+            try {
+                const response = await fetch('dashboard_data.json');
+                dashboardData = await response.json();
+                initializeDashboard();
+            } catch (error) {
+                console.error('Error loading data:', error);
+                alert('Error loading dashboard data. Please ensure dashboard_data.json exists.');
+            }
+        }
+
+        // ========== Initialize Dashboard ==========
+        function initializeDashboard() {
+            // Update metrics
+            document.getElementById('metric-scanned').textContent = formatNumber(dashboardData.overall_metrics.total_scanned);
+            document.getElementById('metric-with-agents').textContent = formatNumber(dashboardData.overall_metrics.repos_with_agents) + ' (' + dashboardData.overall_metrics.adoption_rate + '%)';
+            document.getElementById('last-updated').textContent = formatDate(dashboardData.metadata.generated_at);
+
+            // Update cohort data
+            document.getElementById('new-total').textContent = formatNumber(dashboardData.cohort_analysis.new_repos.total);
+            document.getElementById('new-with-agents').textContent = formatNumber(dashboardData.cohort_analysis.new_repos.with_agents);
+            document.getElementById('established-total').textContent = formatNumber(dashboardData.cohort_analysis.established_repos.total);
+            document.getElementById('established-with-agents').textContent = formatNumber(dashboardData.cohort_analysis.established_repos.with_agents);
+
+            // Create visualizations
+            createTimelineChart();
+            createCohortCharts();
+            createToolLandscapeChart();
+            createLegend();
+
+            // Setup event listeners
+            setupToggleButtons();
+        }
+
+        // ========== Timeline Chart (D3.js) ==========
+        function createTimelineChart() {
+            const margin = {top: 20, right: 120, bottom: 50, left: 60};
+            const container = document.getElementById('timeline-chart');
+            const width = container.clientWidth - margin.left - margin.right;
+            const height = 500 - margin.top - margin.bottom;
+
+            // Clear previous chart
+            d3.select('#timeline-chart').selectAll('*').remove();
+
+            const svg = d3.select('#timeline-chart')
+                .append('svg')
+                .attr('width', width + margin.left + margin.right)
+                .attr('height', height + margin.top + margin.bottom)
+                .append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+
+            // Add clip path to prevent lines from extending beyond chart area
+            svg.append('defs').append('clipPath')
+                .attr('id', 'chart-clip')
+                .append('rect')
+                .attr('width', width)
+                .attr('height', height);
+
+            // Parse dates
+            const weeks = dashboardData.timeline.weeks.map(d => new Date(d));
+
+            // Display range from metadata (for initial view)
+            const displayStart = new Date(dashboardData.metadata.display_start);
+            const displayEnd = new Date(dashboardData.metadata.display_end);
+
+            // Create scales
+            const xScale = d3.scaleTime()
+                .domain([displayStart, displayEnd])
+                .range([0, width]);
+
+            // Store original y-domain for reset
+            const originalYDomain = [0, d3.max(Object.values(dashboardData.timeline.cumulative).flat())];
+
+            const yScale = d3.scaleLinear()
+                .domain(originalYDomain)
+                .range([height, 0])
+                .nice();
+
+            // Create axes with multi-scale time formatting (adjusts based on zoom)
+            const xAxis = d3.axisBottom(xScale)
+                .ticks(8);
+
+            const yAxis = d3.axisLeft(yScale)
+                .ticks(6)
+                .tickFormat(d => formatNumber(d));
+
+            svg.append('g')
+                .attr('transform', `translate(0,${height})`)
+                .call(xAxis)
+                .selectAll('text')
+                .style('font-size', '12px');
+
+            svg.append('g')
+                .call(yAxis)
+                .selectAll('text')
+                .style('font-size', '12px');
+
+            // Grid lines
+            svg.append('g')
+                .attr('class', 'grid')
+                .call(d3.axisLeft(yScale)
+                    .tickSize(-width)
+                    .tickFormat(''))
+                .style('stroke', '#E5E7EB')
+                .style('stroke-opacity', 0.5);
+
+            // Line generator
+            const line = d3.line()
+                .x((d, i) => xScale(weeks[i]))
+                .y(d => yScale(d))
+                .curve(d3.curveMonotoneX);
+
+            // Create a clipped group for lines and areas
+            const clippedGroup = svg.append('g')
+                .attr('clip-path', 'url(#chart-clip)');
+
+            // Draw lines
+            if (currentMode === 'split') {
+                Object.keys(TOOL_LABELS).forEach(tool => {
+                    if (disabledTools.has(tool)) return;
+
+                    const data = dashboardData.timeline.cumulative[tool];
+
+                    clippedGroup.append('path')
+                        .datum(data)
+                        .attr('class', `line-${tool}`)
+                        .attr('fill', 'none')
+                        .attr('stroke', COLORS[tool])
+                        .attr('stroke-width', tool === 'agents_standard' ? 2 : 2.5)
+                        .attr('stroke-dasharray', tool === 'agents_standard' ? '5,5' : '0')
+                        .attr('d', line);
+                });
+            } else {
+                // Combined mode
+                const data = dashboardData.timeline.cumulative.total_unique_repos;
+
+                clippedGroup.append('path')
+                    .datum(data)
+                    .attr('class', 'line-combined')
+                    .attr('fill', 'none')
+                    .attr('stroke', COLORS.claude_code)
+                    .attr('stroke-width', 3)
+                    .attr('d', line);
+
+                // Fill area
+                const area = d3.area()
+                    .x((d, i) => xScale(weeks[i]))
+                    .y0(height)
+                    .y1(d => yScale(d))
+                    .curve(d3.curveMonotoneX);
+
+                clippedGroup.append('path')
+                    .datum(data)
+                    .attr('class', 'area-combined')
+                    .attr('fill', COLORS.claude_code)
+                    .attr('fill-opacity', 0.1)
+                    .attr('d', area);
+            }
+
+            // Annotations
+            dashboardData.annotations.forEach((annotation, idx) => {
+                const date = new Date(annotation.date);
+                const x = xScale(date);
+
+                svg.append('line')
+                    .attr('class', `annotation-line-${idx}`)
+                    .attr('x1', x)
+                    .attr('x2', x)
+                    .attr('y1', 0)
+                    .attr('y2', height)
+                    .attr('stroke', annotation.color)
+                    .attr('stroke-width', 2)
+                    .attr('stroke-dasharray', '4,4')
+                    .attr('opacity', 0.5);
+
+                svg.append('text')
+                    .attr('class', `annotation-text-${idx}`)
+                    .attr('x', x)
+                    .attr('y', -5)
+                    .attr('text-anchor', 'middle')
+                    .attr('font-size', '13px')
+                    .attr('font-weight', '600')
+                    .attr('fill', annotation.color)
+                    .text(annotation.label);
+            });
+
+            // Tooltip interaction
+            const tooltip = d3.select('#tooltip');
+
+            const overlay = svg.append('rect')
+                .attr('width', width)
+                .attr('height', height)
+                .attr('fill', 'none')
+                .attr('pointer-events', 'all')
+                .on('mousemove', function(event) {
+                    const [mouseX] = d3.pointer(event);
+                    const date = xScale.invert(mouseX);
+
+                    // Find closest week
+                    const bisect = d3.bisector(d => d).left;
+                    const index = bisect(weeks, date);
+                    const closestIndex = Math.min(index, weeks.length - 1);
+
+                    showTooltip(event, closestIndex);
+                })
+                .on('mouseout', () => {
+                    tooltip.classed('visible', false);
+                });
+
+            // Brush for zoom
+            const brush = d3.brushX()
+                .extent([[0, 0], [width, height]])
+                .on('end', brushed);
+
+            svg.append('g')
+                .attr('class', 'brush')
+                .call(brush);
+
+            function brushed(event) {
+                if (!event.selection) return;
+
+                const [x0, x1] = event.selection.map(xScale.invert);
+                xScale.domain([x0, x1]);
+
+                // Calculate new y-domain based on visible data range
+                const visibleIndices = weeks
+                    .map((week, i) => ({ week, i }))
+                    .filter(({ week }) => week >= x0 && week <= x1)
+                    .map(({ i }) => i);
+
+                let maxYValue = 0;
+                if (currentMode === 'split') {
+                    // Find max value across all enabled tools in visible range
+                    Object.keys(TOOL_LABELS).forEach(tool => {
+                        if (disabledTools.has(tool)) return;
+                        const toolData = dashboardData.timeline.cumulative[tool];
+                        visibleIndices.forEach(i => {
+                            if (toolData[i] > maxYValue) {
+                                maxYValue = toolData[i];
+                            }
+                        });
+                    });
+                } else {
+                    // Combined mode
+                    const combinedData = dashboardData.timeline.cumulative.total_unique_repos;
+                    visibleIndices.forEach(i => {
+                        if (combinedData[i] > maxYValue) {
+                            maxYValue = combinedData[i];
+                        }
+                    });
+                }
+
+                // Update y-scale domain with some padding
+                yScale.domain([0, maxYValue]).nice();
+
+                svg.select('.brush').call(brush.move, null);
+
+                updateChart();
+
+                document.getElementById('reset-zoom').classList.add('visible');
+            }
+
+            function updateChart() {
+                // Update x-axis
+                svg.select('g').call(xAxis);
+
+                // Update y-axis
+                svg.selectAll('g').filter(function() {
+                    return d3.select(this).select('.domain').size() > 0 &&
+                           d3.select(this).attr('transform') !== `translate(0,${height})`;
+                }).call(yAxis);
+
+                // Update grid lines
+                svg.select('.grid')
+                    .call(d3.axisLeft(yScale)
+                        .tickSize(-width)
+                        .tickFormat(''));
+
+                // Update line paths
+                svg.selectAll('path[class^="line-"]')
+                    .attr('d', line);
+
+                // Update combined area
+                svg.selectAll('.area-combined')
+                    .attr('d', d3.area()
+                        .x((d, i) => xScale(weeks[i]))
+                        .y0(height)
+                        .y1(d => yScale(d))
+                        .curve(d3.curveMonotoneX));
+
+                // Update annotation positions
+                dashboardData.annotations.forEach((annotation, idx) => {
+                    const date = new Date(annotation.date);
+                    const x = xScale(date);
+
+                    svg.select(`.annotation-line-${idx}`)
+                        .attr('x1', x)
+                        .attr('x2', x);
+
+                    svg.select(`.annotation-text-${idx}`)
+                        .attr('x', x);
+                });
+            }
+
+            document.getElementById('reset-zoom').addEventListener('click', () => {
+                xScale.domain([displayStart, displayEnd]);
+                yScale.domain(originalYDomain).nice();
+                updateChart();
+                document.getElementById('reset-zoom').classList.remove('visible');
+            });
+
+            // Store for updates
+            timelineChart = {svg, xScale, yScale, weeks, line};
+        }
+
+        function showTooltip(event, index) {
+            const tooltip = d3.select('#tooltip');
+            const date = dashboardData.timeline.weeks[index];
+
+            let html = `<div class="tooltip-date">${formatDate(date)}</div>`;
+
+            if (currentMode === 'split') {
+                Object.keys(TOOL_LABELS).forEach(tool => {
+                    if (disabledTools.has(tool)) return;
+                    const value = dashboardData.timeline.cumulative[tool][index];
+                    html += `<div class="tooltip-row">
+                        <span>${TOOL_LABELS[tool]}:</span>
+                        <span>${formatNumber(value)}</span>
+                    </div>`;
+                });
+            } else {
+                const value = dashboardData.timeline.cumulative.total_unique_repos[index];
+                html += `<div class="tooltip-row">
+                    <span>Total Repos:</span>
+                    <span>${formatNumber(value)}</span>
+                </div>`;
+            }
+
+            tooltip.html(html)
+                .style('left', (event.pageX + 15) + 'px')
+                .style('top', (event.pageY - 15) + 'px')
+                .classed('visible', true);
+        }
+
+        // ========== Cohort Charts (Chart.js) ==========
+        function createCohortCharts() {
+            const newData = dashboardData.cohort_analysis.new_repos;
+            const establishedData = dashboardData.cohort_analysis.established_repos;
+
+            createDonutChart('new-repos-chart', newData.adoption_rate);
+            createDonutChart('established-repos-chart', establishedData.adoption_rate);
+        }
+
+        function createDonutChart(canvasId, adoptionRate) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['With Agents', 'Without Agents'],
+                    datasets: [{
+                        data: [adoptionRate, 100 - adoptionRate],
+                        backgroundColor: [COLORS.claude_code, '#E5E7EB'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    cutout: '70%',
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.label + ': ' + context.parsed.toFixed(1) + '%';
+                                }
+                            }
+                        }
+                    }
+                },
+                plugins: [{
+                    id: 'centerText',
+                    beforeDraw: function(chart) {
+                        const width = chart.width;
+                        const height = chart.height;
+                        const ctx = chart.ctx;
+                        ctx.restore();
+
+                        const fontSize = Math.round(height / 6);
+                        ctx.font = 'bold ' + fontSize + 'px sans-serif';
+                        ctx.textBaseline = "middle";
+                        ctx.fillStyle = COLORS.claude_code;
+
+                        const text = adoptionRate.toFixed(1) + '%';
+                        const textX = Math.round((width - ctx.measureText(text).width) / 2);
+                        const textY = height / 2;
+
+                        ctx.fillText(text, textX, textY);
+                        ctx.save();
+                    }
+                }]
+            });
+        }
+
+        // ========== Tool Landscape Chart ==========
+        function createToolLandscapeChart() {
+            const ctx = document.getElementById('tool-landscape-chart').getContext('2d');
+
+            const singleToolData = {};
+            const multiToolData = dashboardData.tool_combinations.multi_tool_count;
+
+            // Extract single tool counts from top combinations
+            dashboardData.tool_combinations.top_combinations.forEach(combo => {
+                if (!combo.combination.includes('+')) {
+                    const toolName = combo.combination.trim();
+                    singleToolData[toolName] = combo.count;
+                }
+            });
+
+            // Map to readable labels
+            const toolLabels = Object.keys(singleToolData);
+            const toolCounts = Object.values(singleToolData);
+
+            // Calculate total single tool
+            const totalSingleTool = toolCounts.reduce((a, b) => a + b, 0);
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Tool Usage'],
+                    datasets: [
+                        {
+                            label: 'Single Tool',
+                            data: [totalSingleTool],
+                            backgroundColor: COLORS.copilot
+                        },
+                        {
+                            label: 'Multi-Tool',
+                            data: [multiToolData],
+                            backgroundColor: COLORS.cursor
+                        }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = dashboardData.overall_metrics.repos_with_agents;
+                                    const value = context.parsed.x;
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return context.dataset.label + ': ' + value + ' (' + percentage + '%)';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: false,
+                            ticks: {
+                                callback: function(value) {
+                                    return formatNumber(value);
+                                }
+                            }
+                        },
+                        y: {
+                            stacked: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // ========== Legend ==========
+        function createLegend() {
+            const legend = document.getElementById('timeline-legend');
+            legend.innerHTML = '';
+
+            Object.keys(TOOL_LABELS).forEach(tool => {
+                const item = document.createElement('div');
+                item.className = 'legend-item';
+                item.dataset.tool = tool;
+
+                const color = document.createElement('div');
+                color.className = 'legend-color' + (tool === 'agents_standard' ? ' dashed' : '');
+                color.style.backgroundColor = COLORS[tool];
+
+                const label = document.createElement('span');
+                label.textContent = TOOL_LABELS[tool];
+
+                item.appendChild(color);
+                item.appendChild(label);
+                legend.appendChild(item);
+
+                item.addEventListener('click', () => {
+                    if (disabledTools.has(tool)) {
+                        disabledTools.delete(tool);
+                        item.classList.remove('disabled');
+                    } else {
+                        disabledTools.add(tool);
+                        item.classList.add('disabled');
+                    }
+                    createTimelineChart();
+                });
+            });
+        }
+
+        // ========== Toggle Buttons ==========
+        function setupToggleButtons() {
+            document.querySelectorAll('.toggle-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentMode = btn.dataset.mode;
+                    createTimelineChart();
+                });
+            });
+        }
+
+        // ========== Utility Functions ==========
+        function formatNumber(num) {
+            return num.toLocaleString();
+        }
+
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-US', {year: 'numeric', month: 'short', day: 'numeric'});
+        }
+
+        // ========== Initialize ==========
+        loadData();
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (dashboardData) {
+                createTimelineChart();
+            }
+        });
+    </script>
+</body>
+</html>
